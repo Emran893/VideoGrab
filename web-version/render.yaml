@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: video-downloader
+    name: videograb
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    startCommand: "gunicorn --bind 0.0.0.0:10000 app:app"
     envVars:
       - key: PORT
         value: 10000
