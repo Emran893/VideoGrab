@@ -7,27 +7,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-green {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .gradient-orange {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .gradient-cyan {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%); }
         .loader {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #667eea;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite; }
         @keyframes spin {
             0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease-in;
-        }
+            100% { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+            to { opacity: 1; transform: translateY(0); } }
+        .method-card {
+            transition: all 0.2s ease;
+            cursor: pointer; }
+        .method-card:hover {
+            border-color: #667eea;
+            background: #f5f3ff; }
+        .method-card.selected {
+            border-color: #667eea;
+            background: #ede9fe;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2); }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -37,28 +46,26 @@
         <div class="container mx-auto px-4 text-center">
             <h1 class="text-4xl font-bold mb-2">🎬 VideoGrab</h1>
             <p class="text-lg opacity-90">YouTube • TikTok • Facebook • Instagram • +1000 साइटें</p>
-            <div class="mt-2 inline-block bg-white/20 px-4 py-1 rounded-full text-sm">
-                ✅ बिना वॉटरमार्क • ✅ सभी क्वालिटी • ✅ MP3 ऑडियो
+            <div class="mt-2 flex justify-center gap-2 text-sm flex-wrap">
+                <span class="bg-white/20 px-3 py-1 rounded-full">🎯 Delogo</span>
+                <span class="bg-white/20 px-3 py-1 rounded-full">🌫️ Blur</span>
+                <span class="bg-white/20 px-3 py-1 rounded-full">🧹 मेटाडेटा हटाएं</span>
             </div>
         </div>
     </header>
 
     <main class="container mx-auto px-4 py-8 max-w-2xl">
 
-        <!-- URL Input Box -->
+        <!-- URL Input -->
         <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <label class="block text-gray-700 font-semibold mb-3">वीडियो का URL यहाँ पेस्ट करें</label>
             <input 
-                type="text" 
-                id="urlInput" 
-                placeholder="https://www.youtube.com/watch?v=... या https://www.tiktok.com/..."
+                type="text" id="urlInput" 
+                placeholder="Facebook, TikTok, Instagram, YouTube आदि का लिंक..."
                 class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-lg transition"
             >
-            <button 
-                onclick="fetchFormats()" 
-                id="fetchBtn"
-                class="w-full mt-4 gradient-bg text-white py-4 rounded-xl font-semibold hover:opacity-90 transition shadow-lg text-lg"
-            >
+            <button onclick="fetchFormats()" id="fetchBtn"
+                class="w-full mt-4 gradient-bg text-white py-4 rounded-xl font-semibold hover:opacity-90 transition shadow-lg text-lg">
                 🔍 वीडियो जांचें
             </button>
         </div>
@@ -66,13 +73,13 @@
         <!-- Loading -->
         <div id="loading" class="hidden text-center py-12 bg-white rounded-2xl shadow-xl">
             <div class="loader mx-auto mb-4"></div>
-            <p class="text-gray-600">प्रोसेस हो रहा है, कृपया प्रतीक्षा करें...</p>
+            <p id="loadingText" class="text-gray-600">प्रोसेस हो रहा है...</p>
         </div>
 
         <!-- Error -->
         <div id="error" class="hidden bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl mb-6"></div>
 
-        <!-- Video Info & Formats -->
+        <!-- Results -->
         <div id="results" class="hidden fade-in">
 
             <!-- Video Info -->
@@ -81,36 +88,81 @@
                     <img id="thumbnail" src="" alt="Thumbnail" class="w-full sm:w-40 h-24 object-cover rounded-lg shadow bg-gray-200">
                     <div class="flex-1">
                         <h2 id="videoTitle" class="text-lg font-bold text-gray-800 mb-1"></h2>
-                        <p id="videoSource" class="text-sm text-gray-500"></p>
-                        <div class="mt-2 inline-block bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
-                            बिना वॉटरमार्क उपलब्ध
-                        </div>
+                        <p id="videoSource" class="text-sm text-gray-500 mb-2"></p>
+                        <span id="maxQualityBadge" class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-medium"></span>
                     </div>
                 </div>
             </div>
 
-            <!-- Video Quality -->
+            <!-- ⭐ QUICK ACTIONS -->
             <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">📹 वीडियो क्वालिटी चुनें</h3>
-                <div id="formatsList" class="space-y-2">
-                    <!-- डाइनामिकली भरा जाएगा -->
+                <h3 class="text-lg font-bold text-gray-800 mb-4">⚡ एक क्लिक में डाउनलोड</h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                    <button onclick="downloadMaxQuality()" 
+                        class="gradient-green text-white p-4 rounded-xl font-semibold hover:opacity-90 transition shadow text-left">
+                        <div class="text-lg">🏆 मैक्स क्वालिटी</div>
+                        <div class="text-xs opacity-90 mt-1">सबसे अच्छी क्वालिटी ऑटो चुनें</div>
+                    </button>
+                    
+                    <button onclick="downloadClean()" 
+                        class="gradient-orange text-white p-4 rounded-xl font-semibold hover:opacity-90 transition shadow text-left">
+                        <div class="text-lg">🧹 साफ़ वीडियो</div>
+                        <div class="text-xs opacity-90 mt-1">वॉटरमार्क + मेटाडेटा हटाएं</div>
+                    </button>
+                </div>
+
+                <!-- वॉटरमार्क हटाने का तरीका चुनें -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        🎯 वॉटरमार्क हटाने का तरीका चुनें:
+                    </label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div class="method-card selected border-2 border-gray-200 rounded-lg p-3 text-center" data-method="delogo" onclick="selectMethod('delogo')">
+                            <div class="text-xl mb-1">🎯</div>
+                            <div class="text-sm font-semibold">Delogo</div>
+                            <div class="text-xs text-gray-500">सबसे अच्छा</div>
+                        </div>
+                        <div class="method-card border-2 border-gray-200 rounded-lg p-3 text-center" data-method="blur" onclick="selectMethod('blur')">
+                            <div class="text-xl mb-1">🌫️</div>
+                            <div class="text-sm font-semibold">Blur</div>
+                            <div class="text-xs text-gray-500">धुंधला करें</div>
+                        </div>
+                        <div class="method-card border-2 border-gray-200 rounded-lg p-3 text-center" data-method="crop" onclick="selectMethod('crop')">
+                            <div class="text-xl mb-1">✂️</div>
+                            <div class="text-sm font-semibold">Crop</div>
+                            <div class="text-xs text-gray-500">काट दें</div>
+                        </div>
+                        <div class="method-card border-2 border-gray-200 rounded-lg p-3 text-center" data-method="none" onclick="selectMethod('none')">
+                            <div class="text-xl mb-1">📝</div>
+                            <div class="text-sm font-semibold">सिर्फ मेटाडेटा</div>
+                            <div class="text-xs text-gray-500">वॉटरमार्क नहीं</div>
+                        </div>
+                    </div>
+                    <p id="methodDesc" class="text-xs text-gray-500 mt-3">
+                        🎯 <b>Delogo:</b> ffmpeg का delogo filter वॉटरमार्क को आसपास के पिक्सेल से भरकर बिल्कुल गायब कर देता है। वीडियो का साइज़ समान रहता है।
+                    </p>
                 </div>
             </div>
 
-            <!-- Audio Quality -->
+            <!-- Manual Video Quality -->
+            <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">📹 मैनुअल - वीडियो क्वालिटी चुनें</h3>
+                <div id="formatsList" class="space-y-2"></div>
+            </div>
+
+            <!-- Audio -->
             <div class="bg-white rounded-2xl shadow-xl p-6">
                 <h3 class="text-lg font-bold text-gray-800 mb-4">🎵 केवल ऑडियो (MP3)</h3>
-                <div id="audioList" class="space-y-2">
-                    <!-- डाइनामिकली भरा जाएगा -->
-                </div>
+                <div id="audioList" class="space-y-2"></div>
             </div>
         </div>
 
         <!-- Downloading Status -->
         <div id="downloading" class="hidden text-center py-12 bg-white rounded-2xl shadow-xl">
             <div class="loader mx-auto mb-4"></div>
-            <p class="text-gray-600 text-lg">⬇️ डाउनलोड हो रहा है...</p>
-            <p class="text-sm text-gray-400 mt-2">बड़े वीडियो में समय लग सकता है</p>
+            <p id="downloadingText" class="text-gray-600 text-lg">डाउनलोड हो रहा है...</p>
+            <p class="text-sm text-gray-400 mt-2">साफ़ वीडियो में थोड़ा और समय लगेगा (ffmpeg प्रोसेस कर रहा है)</p>
         </div>
 
     </main>
@@ -124,51 +176,56 @@
     </footer>
 
     <script>
+        let currentUrl = '';
+        let maxFormatId = '';
+        let selectedMethod = 'delogo';
+
+        const methodDescriptions = {
+            delogo: '🎯 <b>Delogo:</b> ffmpeg का delogo filter वॉटरमार्क को आसपास के पिक्सेल से भरकर बिल्कुल गायब कर देता है। वीडियो का साइज़ समान रहता है। (सबसे अच्छा)',
+            blur:   '🌫️ <b>Blur:</b> वॉटरमार्क वाले एरिया को बॉक्स ब्लर से धुंधला कर देता है। अगर delogo पूरी तरह न हटा पाए तो ये आज़माएं।',
+            crop:   '✂️ <b>Crop:</b> वीडियो के निचे का 8% हिस्सा काट देता है। सबसे फास्ट, लेकिन वीडियो थोड़ी छोटी हो जाती है।',
+            none:   '📝 <b>सिर्फ मेटाडेटा:</b> वॉटरमार्क नहीं छुएगा, सिर्फ title, artist, encoder आदि मेटाडेटा हटा देगा।'
+        };
+
+        function selectMethod(method) {
+            selectedMethod = method;
+            document.querySelectorAll('.method-card').forEach(card => {
+                card.classList.toggle('selected', card.dataset.method === method);
+            });
+            document.getElementById('methodDesc').innerHTML = methodDescriptions[method];
+        }
+
         async function fetchFormats() {
-            const url = document.getElementById('urlInput').value.trim();
-            if (!url) {
+            currentUrl = document.getElementById('urlInput').value.trim();
+            if (!currentUrl) {
                 showError('कृपया पहले वीडियो का URL डालें');
                 return;
             }
-
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('results').classList.add('hidden');
-            document.getElementById('error').classList.add('hidden');
-            document.getElementById('fetchBtn').disabled = true;
-
+            showLoading('वीडियो की जानकारी निकाली जा रही है...');
+            hideAll();
             try {
                 const response = await fetch('/api/get-formats', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: JSON.stringify({ url: currentUrl })
                 });
-
-                const responseText = await response.text();
+                const text = await response.text();
                 let data;
-                try {
-                    data = JSON.parse(responseText);
-                } catch (e) {
-                    throw new Error('सर्वर से गलत जवाब आया');
-                }
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'कुछ गलत हुआ');
-                }
-
-                displayResults(data, url);
-
+                try { data = JSON.parse(text); } 
+                catch(e) { throw new Error('सर्वर से गलत जवाब'); }
+                if (!response.ok) throw new Error(data.error || 'त्रुटि');
+                displayResults(data);
             } catch (error) {
                 showError('❌ ' + error.message);
             } finally {
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('fetchBtn').disabled = false;
+                hideLoading();
             }
         }
 
-        function displayResults(data, url) {
+        function displayResults(data) {
             const info = data.video_info;
+            maxFormatId = info.max_format_id;
 
-            // थंबनेल
             const thumb = document.getElementById('thumbnail');
             if (info.thumbnail) {
                 thumb.src = info.thumbnail;
@@ -178,40 +235,39 @@
             }
 
             document.getElementById('videoTitle').textContent = info.title;
-            document.getElementById('videoSource').textContent = `📱 स्रोत: ${info.extractor} • ⏱️ ${formatDuration(info.duration)}`;
+            document.getElementById('videoSource').textContent = `📱 ${info.extractor} • ⏱️ ${formatDuration(info.duration)}`;
+            document.getElementById('maxQualityBadge').textContent = `उच्चतम: ${info.max_quality || 'N/A'}`;
 
             // वीडियो फॉर्मेट
             const formatsDiv = document.getElementById('formatsList');
             formatsDiv.innerHTML = '';
-
             if (data.formats && data.formats.length > 0) {
                 data.formats.forEach(fmt => {
                     const btn = document.createElement('button');
                     btn.className = 'w-full text-left p-3 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition flex justify-between items-center';
                     btn.innerHTML = `
                         <span class="font-semibold text-gray-800">▶️ ${fmt.resolution}</span>
-                        <span class="text-sm text-gray-500">${fmt.filesize_mb} MB • ${fmt.fps}fps • ${fmt.ext}</span>
+                        <span class="text-sm text-gray-500">${fmt.filesize_mb} MB • ${fmt.fps}fps</span>
                     `;
-                    btn.onclick = () => downloadVideo(url, fmt.format_id, 'video');
+                    btn.onclick = () => downloadVideo(fmt.format_id, 'video');
                     formatsDiv.appendChild(btn);
                 });
             } else {
                 formatsDiv.innerHTML = '<p class="text-gray-500 text-center py-4">कोई वीडियो फॉर्मेट उपलब्ध नहीं</p>';
             }
 
-            // ऑडियो फॉर्मेट
+            // ऑडियो
             const audioDiv = document.getElementById('audioList');
             audioDiv.innerHTML = '';
-
             if (data.audio && data.audio.length > 0) {
                 data.audio.forEach(a => {
                     const btn = document.createElement('button');
                     btn.className = 'w-full text-left p-3 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition flex justify-between items-center';
                     btn.innerHTML = `
                         <span class="font-semibold text-gray-800">🎵 ${a.abr} kbps</span>
-                        <span class="text-sm text-gray-500">MP3 • ${a.ext}</span>
+                        <span class="text-sm text-gray-500">MP3</span>
                     `;
-                    btn.onclick = () => downloadVideo(url, a.format_id, 'audio');
+                    btn.onclick = () => downloadVideo(a.format_id, 'audio');
                     audioDiv.appendChild(btn);
                 });
             } else {
@@ -221,8 +277,60 @@
             document.getElementById('results').classList.remove('hidden');
         }
 
-        async function downloadVideo(url, formatId, type) {
-            document.getElementById('downloading').classList.remove('hidden');
+        async function downloadMaxQuality() {
+            if (!maxFormatId) { showError('पहले वीडियो जांचें'); return; }
+            await downloadVideo(maxFormatId, 'video');
+        }
+
+        async function downloadClean() {
+            if (!maxFormatId) { showError('पहले वीडियो जांचें'); return; }
+
+            const methodNames = { delogo: 'Delogo', blur: 'Blur', crop: 'Crop', none: 'मेटाडेटा' };
+            showDownloading(`🧹 साफ़ वीडियो (${methodNames[selectedMethod]})...\nffmpeg प्रोसेस कर रहा है, कृपया प्रतीक्षा करें`);
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/download-clean', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        url: currentUrl, 
+                        format_id: maxFormatId,
+                        method: selectedMethod
+                    })
+                });
+
+                if (!response.ok) {
+                    let msg = 'साफ़ करने में गड़बड़';
+                    try { const d = await response.json(); msg = d.error || msg; } catch(e) {}
+                    throw new Error(msg);
+                }
+
+                const blob = await response.blob();
+                const dlUrl = window.URL.createObjectURL(blob);
+                const cd = response.headers.get('Content-Disposition');
+                let filename = 'video_CLEAN.mp4';
+                if (cd) { const m = cd.match(/filename="?([^"]+)"?/); if (m) filename = decodeURIComponent(m[1]); }
+
+                const a = document.createElement('a');
+                a.href = dlUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(dlUrl);
+                document.body.removeChild(a);
+
+            } catch (error) {
+                showError('❌ ' + error.message);
+                document.getElementById('results').classList.remove('hidden');
+            } finally {
+                hideDownloading();
+            }
+        }
+
+        async function downloadVideo(formatId, type) {
+            showDownloading(type === 'audio' ? '🎵 ऑडियो डाउनलोड हो रहा है...' : '⬇️ वीडियो डाउनलोड हो रहा है...');
             document.getElementById('results').classList.add('hidden');
             document.getElementById('error').classList.add('hidden');
 
@@ -230,52 +338,63 @@
                 const response = await fetch('/api/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, format_id: formatId, type })
+                    body: JSON.stringify({ url: currentUrl, format_id: formatId, type })
                 });
 
                 if (!response.ok) {
-                    let errorMsg = 'डाउनलोड में गड़बड़';
-                    try {
-                        const d = await response.json();
-                        errorMsg = d.error || errorMsg;
-                    } catch(e) {}
-                    throw new Error(errorMsg);
+                    let msg = 'डाउनलोड में गड़बड़';
+                    try { const d = await response.json(); msg = d.error || msg; } catch(e) {}
+                    throw new Error(msg);
                 }
 
                 const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
-
-                // फ़ाइलनेम
+                const dlUrl = window.URL.createObjectURL(blob);
                 const cd = response.headers.get('Content-Disposition');
                 let filename = type === 'audio' ? 'audio.mp3' : 'video.mp4';
-                if (cd) {
-                    const m = cd.match(/filename="?([^"]+)"?/);
-                    if (m) filename = decodeURIComponent(m[1]);
-                }
+                if (cd) { const m = cd.match(/filename="?([^"]+)"?/); if (m) filename = decodeURIComponent(m[1]); }
 
                 const a = document.createElement('a');
-                a.href = downloadUrl;
+                a.href = dlUrl;
                 a.download = filename;
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(downloadUrl);
+                window.URL.revokeObjectURL(dlUrl);
                 document.body.removeChild(a);
 
             } catch (error) {
-                showError('❌ डाउनलोड में गड़बड़: ' + error.message);
+                showError('❌ ' + error.message);
                 document.getElementById('results').classList.remove('hidden');
             } finally {
-                document.getElementById('downloading').classList.add('hidden');
+                hideDownloading();
             }
         }
 
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
-            errorDiv.scrollIntoView({ behavior: 'smooth' });
+        function showError(m) {
+            const e = document.getElementById('error');
+            e.textContent = m;
+            e.classList.remove('hidden');
         }
-
+        function showLoading(t) {
+            document.getElementById('loadingText').textContent = t;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('fetchBtn').disabled = true;
+        }
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('fetchBtn').disabled = false;
+        }
+        function showDownloading(t) {
+            document.getElementById('downloadingText').textContent = t;
+            document.getElementById('downloading').classList.remove('hidden');
+        }
+        function hideDownloading() {
+            document.getElementById('downloading').classList.add('hidden');
+        }
+        function hideAll() {
+            document.getElementById('error').classList.add('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('downloading').classList.add('hidden');
+        }
         function formatDuration(seconds) {
             if (!seconds) return 'N/A';
             const m = Math.floor(seconds / 60);
@@ -283,7 +402,6 @@
             return `${m}:${s.toString().padStart(2, '0')}`;
         }
 
-        // Enter की सपोर्ट
         document.getElementById('urlInput').addEventListener('keypress', e => {
             if (e.key === 'Enter') fetchFormats();
         });
