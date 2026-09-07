@@ -4,16 +4,49 @@ import os
 import tempfile
 import uuid
 import traceback
-import imageio_ffmpeg
+import shutil
+import logging
 
-# ffmpeg path auto-set - Railway/Vercel/Render पर काम करेगा
-os.environ["PATH"] = os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe()) + os.pathsep + os.environ.get("PATH", "")
+# =============================================
+# FFMPEG पाथ सेटअप - सबसे ज़रूरी हिस्सा
+# =============================================
+FFMPEG_PATH = None
 
+# तरीका 1: सिस्टम ffmpeg चेक करें (Dockerfile से इंस्टॉल हुआ)
+for possible_path in [
+    '/usr/bin/ffmpeg',
+    '/usr/local/bin/ffmpeg',
+    '/bin/ffmpeg',
+    shutil.which('ffmpeg'),
+]:
+    if possible_path and os.path.exists(possible_path):
+        FFMPEG_PATH = possible_path
+        break
+
+# तरीका 2: अगर सिस्टम में नहीं मिला तो imageio-ffmpeg का उपयोग करें
+if not FFMPEG_PATH:
+    try:
+        import imageio_ffmpeg
+        FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
+        os.environ["PATH"] = os.path.dirname(FFMPEG_PATH) + os.pathsep + os.environ.get("PATH", "")
+    except ImportError:
+        pass
+
+# तरीका 3: अगर अभी भी नहीं मिला तो yt-dlp को खुद ढूंढने दें
+FFMPEG_LOCATION = os.path.dirname(FFMPEG_PATH) if FFMPEG_PATH else None
+
+# Flask ऐप सेटअप
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 application = app  # Gunicorn के लिए
 
+logging.basicConfig(level=logging.INFO)
+app.logger.setLevel(logging.INFO)
+
 DOWNLOAD_FOLDER = tempfile.mkdtemp()
+app.logger.info(f'📂 डाउनलोड फोल्डर: {DOWNLOAD_FOLDER}')
+app.logger.info(f'🎬 FFMPEG पाथ: {FFMPEG_PATH}')
+app.logger.info(f'🎬 FFMPEG लोकेशन: {FFMPEG_LOCATION}')
 
 
 def get_ydl_opts(extractor='generic'):
@@ -21,6 +54,7 @@ def get_ydl_opts(extractor='generic'):
     opts = {
         'quiet': True,
         'no_warnings': True,
+        'ffmpeg_location': FFMPEG_LOCATION,  # ⭐ ffmpeg का पथ स्पष्ट रूप से दें
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
         }
@@ -60,7 +94,12 @@ def index():
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'OK', 'yt_dlp': yt_dlp.version.__version__})
+    return jsonify({
+        'status': 'OK',
+        'yt_dlp': yt_dlp.version.__version__,
+        'ffmpeg_path': FFMPEG_PATH,
+        'ffmpeg_found': FFMPEG_PATH is not None
+    })
 
 
 @app.route('/api/get-formats', methods=['POST'])
@@ -72,10 +111,14 @@ def get_formats():
         if not url:
             return jsonify({'error': 'कृपया वीडियो का URL डालें'}), 400
 
+        app.logger.info(f'🔍 प्रोसेस हो रहा URL: {url[:80]}...')
+
         # एक्सट्रैक्टर पहचानें
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             extractor = info.get('extractor', 'generic')
+
+        app.logger.info(f'📱 एक्सट्रैक्टर पहचाना गया: {extractor}')
 
         # सही कॉन्फिग के साथ फिर से एक्सट्रैक्ट करें
         with yt_dlp.YoutubeDL(get_ydl_opts(extractor)) as ydl:
@@ -102,7 +145,8 @@ def get_formats():
                         'height': h,
                         'ext': f.get('ext', 'mp4'),
                         'fps': f.get('fps', 30),
-                        'filesize_mb': round(filesize / 1048576, 1) if filesize else 'N/A'
+                        'filesize_mb': round(filesize / 1048576, 1) if filesize else 'N/A',
+                        'has_audio': f.get('acodec') != 'none'
                     })
             formats.sort(key=lambda x: x['height'], reverse=True)
 
@@ -121,6 +165,7 @@ def get_formats():
                         })
             audio.sort(key=lambda x: x['abr'], reverse=True)
 
+        app.logger.info(f'✅ {len(formats)} वीडियो + {len(audio)} ऑडियो फॉर्मेट मिले')
         return jsonify({
             'video_info': video_info,
             'formats': formats,
@@ -128,6 +173,7 @@ def get_formats():
         })
 
     except Exception as e:
+        app.logger.error(f'❌ एरर: {str(e)}')
         app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
@@ -143,6 +189,9 @@ def download():
         if not url:
             return jsonify({'error': 'URL खाली है'}), 400
 
+        app.logger.info(f'⬇️ डाउनलोड शुरू: type={is_audio}, format={fmt_id}')
+        app.logger.info(f'🎬 ffmpeg उपलब्ध: {FFMPEG_PATH is not None} (पाथ: {FFMPEG_PATH})')
+
         uid = str(uuid.uuid4())
         out = os.path.join(DOWNLOAD_FOLDER, f'{uid}.%(ext)s')
 
@@ -157,7 +206,6 @@ def download():
         opts.update({
             'outtmpl': out,
             'merge_output_format': 'mp4',
-            'ffmpeg_location': imageio_ffmpeg.get_ffmpeg_exe()
         })
 
         if is_audio:
@@ -168,7 +216,13 @@ def download():
                 'preferredquality': '192'
             }]
         else:
-            opts['format'] = f'{fmt_id}+bestaudio[ext=m4a]/bestaudio'
+            # ⭐ महत्वपूर्ण: अगर ffmpeg नहीं है तो केवल वही फॉर्मेट चुनें
+            # जिसमें वीडियो+ऑडियो दोनों एक साथ हों
+            if not FFMPEG_PATH:
+                app.logger.warning('⚠️ ffmpeg नहीं मिला, केवल कंबाइंड फॉर्मेट का उपयोग करें')
+                opts['format'] = f'best[ext=mp4]/best'
+            else:
+                opts['format'] = f'{fmt_id}+bestaudio[ext=m4a]/bestaudio/best[ext=mp4]/best'
 
         # डाउनलोड करें
         with yt_dlp.YoutubeDL(opts) as ydl:
@@ -183,13 +237,17 @@ def download():
         safe_title = "".join(c for c in video_title if c.isalnum() or c in ' -_()[]')[:80]
         ext = os.path.splitext(filepath)[1]
 
+        app.logger.info(f'✅ डाउनलोड पूरा: {safe_title}{ext}')
+
         return send_file(filepath, as_attachment=True, download_name=f'{safe_title}{ext}')
 
     except Exception as e:
+        app.logger.error(f'❌ डाउनलोड एरर: {str(e)}')
         app.logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
+    app.logger.info(f'🚀 सर्वर पोर्ट {port} पर शुरू हो रहा है...')
     app.run(host='0.0.0.0', port=port, debug=False)
